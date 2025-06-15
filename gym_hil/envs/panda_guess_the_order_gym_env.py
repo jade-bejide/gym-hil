@@ -41,7 +41,7 @@ class PandaGuessTheOrderGymEnv(FrankaGymEnv):
         render_mode: Literal["rgb_array", "human"] = "rgb_array",
         image_obs: bool = False,
         reward_type: str = "sparse",
-        random_block_position: bool = False,
+        random_block_position: bool = True,
     ):
         self.reward_type = reward_type
 
@@ -70,6 +70,7 @@ class PandaGuessTheOrderGymEnv(FrankaGymEnv):
         agent_dim = self.get_robot_state().shape[0]
         agent_box = spaces.Box(-np.inf, np.inf, (agent_dim,), dtype=np.float32)
         env_box = spaces.Box(-np.inf, np.inf, (3,), dtype=np.float32)
+        self.no_blocks = 5
 
         if self.image_obs:
             self.observation_space = spaces.Dict(
@@ -110,30 +111,28 @@ class PandaGuessTheOrderGymEnv(FrankaGymEnv):
 
         # Reset the robot to home position
         self.reset_robot()
-        NO_BLOCKS=5
 
-        positions_coords = np.linspace(-0.7, 0.7, NO_BLOCKS)
+        positions_coords = np.linspace(-0.3, 0.3, self.no_blocks)
         np.random.shuffle(positions_coords)
 
         central_block = np.random.uniform(*_SAMPLING_BOUNDS)
         # Sample a new block position
         if self._random_block_position:
-            # self._data.jnt("block1").qpos[:3] = (*block_xy, self._block_z)
-            blocks = [f"block{i}" for i in range(1,NO_BLOCKS+1)]
+            blocks = [f"block{i}" for i in range(1,self.no_blocks+1)]
             np.random.shuffle(blocks)
             # Add in the target positions
-            targets = [f"target{i}" for i in range(1,NO_BLOCKS+1)]
+            targets = [f"target{i}" for i in range(1,self.no_blocks+1)]
             np.random.shuffle(targets)
 
             for block, target, pos in zip(blocks, targets, positions_coords):
                 block_coords = np.array([central_block[0], central_block[1]+pos])
-                target_coords = np.array([central_block[0]+0.25, central_block[1]+pos])
+                target_coords = np.array([central_block[0]+0.15, central_block[1]+pos])
                 self._data.joint(block).qpos[:3] = (*block_coords, self._block_z)
-                self._data.joint(target).qpos[:3] = (*target_coords, self._block_z)
-            
+                self._data.joint(target).qpos[:3] = (*target_coords, self._block_z)      
         else:
             # Not applicable for PandaGuessTheOrder
             pass
+        
         mujoco.mj_forward(self._model, self._data)
 
         # Cache the initial block height
@@ -151,8 +150,8 @@ class PandaGuessTheOrderGymEnv(FrankaGymEnv):
 
         # Compute observation, reward and termination
         obs = self._compute_observation()
-        rew = self._compute_reward2()
-        success = self._is_success2()
+        rew = self._compute_reward()
+        success = self._is_success()
 
         if self.reward_type == "sparse":
             success = rew == 1.0
@@ -162,6 +161,8 @@ class PandaGuessTheOrderGymEnv(FrankaGymEnv):
         exceeded_bounds = np.any(block_pos[:2] < (_SAMPLING_BOUNDS[0] - 0.05)) or np.any(
             block_pos[:2] > (_SAMPLING_BOUNDS[1] + 0.05)
         )
+
+        exceeded_bounds = False
 
         terminated = bool(success or exceeded_bounds)
 
@@ -193,46 +194,21 @@ class PandaGuessTheOrderGymEnv(FrankaGymEnv):
             }
 
         return observation
-
-    def _compute_reward(self) -> float:
-        """Compute reward based on current state."""
-        block_pos = self._data.sensor("block1_pos").data
-
-        if self.reward_type == "dense":
-            tcp_pos = self._data.sensor("2f85/pinch_pos").data
-            dist = np.linalg.norm(block_pos - tcp_pos)
-            r_close = np.exp(-20 * dist)
-            r_lift = (block_pos[2] - self._z_init) / (self._z_success - self._z_init)
-            r_lift = np.clip(r_lift, 0.0, 1.0)
-            return 0.3 * r_close + 0.7 * r_lift
-        else:
-            lift = block_pos[2] - self._z_init
-            return float(lift > 0.1)
-        
-
-
-    def _is_success(self) -> bool:
-        """Check if the task is successfully completed."""
-        block_pos = self._data.sensor("block1_pos").data
-        tcp_pos = self._data.sensor("2f85/pinch_pos").data
-        dist = np.linalg.norm(block_pos - tcp_pos)
-        lift = block_pos[2] - self._z_init
-        return dist < 0.05 and lift > 0.1
     
     # second reward function and terminating condition based on target position
 
     def get_sensors(self):
-        block_sensors = [self._data.sensor(f"block{i}_pos") for i in range(1,6)]
-        target_sensors = [self._data.sensor(f"target{i}_pos") for i in range(1,6)]
+        block_sensors = [self._data.sensor(f"block{i}_pos") for i in range(1,self.no_blocks+1)]
+        target_sensors = [self._data.sensor(f"target{i}_pos") for i in range(1,self.no_blocks+1)]
         return block_sensors, target_sensors
     
-    def _compute_reward2(self) -> float:
+    def _compute_reward(self) -> float:
         block_sensors, target_sensors = self.get_sensors()
         pairs = zip(block_sensors, target_sensors)
         distances = list(map(lambda pair: np.exp(-20 * np.linalg.norm(pair[0].data-pair[1].data)), pairs))
         return sum(distances)
     
-    def _is_success2(self) -> bool:
+    def _is_success(self) -> bool:
         block_sensors, target_sensors = self.get_sensors()
         pairs = zip(block_sensors, target_sensors)
         distances = list(map(lambda pair: np.linalg.norm(pair[0].data-pair[1].data), pairs))
@@ -242,60 +218,5 @@ class PandaGuessTheOrderGymEnv(FrankaGymEnv):
 
 
 
-# Enables keyboard control of Gym environment - for episode recording
-def human_in_the_loop():
-    env = PandaGuessTheOrderGymEnv(render_mode="human", random_block_position=True, image_obs=True)
-    obs, _ = env.reset()
-
-    print("Observation keys:", list(obs.keys()))
-    if "pixels" in obs:
-        print("Pixels keys:", list(obs["pixels"].keys()))
-
-    env_id = "gym_hil/PandaGuessTheOrderKeyboard-v0"
-    env = gym.make(
-        env_id,
-        render_mode="human",
-        image_obs=True,
-        use_gamepad=False,
-        max_episode_steps=50000
-    )
-
-    # obs, _ = env.reset()
-    dummy_action = np.zeros(4, dtype=np.float32)
-    # This ensures the "stay gripper" action is set when the intervention button is not pressed
-    dummy_action[-1] = 1
-
-    try:
-        while True:
-            # Step the environment
-            obs, reward, terminated, truncated, info = env.step(dummy_action)
-
-            # Print some feedback
-            if info.get("succeed", False):
-                print("\nSuccess! Block has been picked up.")
-
-            # If auto-reset is disabled, manually reset when episode ends
-            # if terminated or truncated:
-            #     print("Episode ended, resetting environment")
-            #     obs, _ = env.reset()
-
-            # Add a small delay to control update rate
-            time.sleep(0.05)
-
-    except KeyboardInterrupt:
-        print("Interrupted by user")
-    finally:
-        env.close()
-        print("Session ended")
 
 
-if __name__ == "__main__":
-    from gym_hil import PassiveViewerWrapper
-    from gym_hil.wrappers.hil_wrappers import InputsControlViewerWrapper
-    # human_in_the_loop()
-    env = PandaGuessTheOrderGymEnv(render_mode="human", random_block_position=True)
-    env = InputsControlViewerWrapper(env, use_gamepad=False)
-    env.reset()
-    for _ in range(1000):
-        env.step(np.random.uniform(-1, 1, 7))
-    env.close()
