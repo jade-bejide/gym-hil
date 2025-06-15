@@ -21,6 +21,9 @@ import time
 import gymnasium as gym
 import numpy as np
 
+import mujoco
+import mujoco.viewer
+
 from gym_hil.mujoco_gym_env import MAX_GRIPPER_COMMAND
 
 DEFAULT_EE_STEP_SIZE = {"x": 0.025, "y": 0.025, "z": 0.025}
@@ -102,6 +105,214 @@ class EEActionWrapper(gym.ActionWrapper):
         action = np.concatenate([action_xyz, actions_orn, gripper_open_command])
         return action
 
+class InputsControlViewerWrapper(gym.Wrapper):
+    """
+    Wrapper that allows controlling a gym environment with a gamepad.
+
+    This wrapper intercepts the step method and allows human input via gamepad
+    to override the agent's actions when desired.
+    """
+
+    def __init__(
+        self,
+        env,
+        x_step_size=1.0,
+        y_step_size=1.0,
+        z_step_size=1.0,
+        use_gripper=False,
+        auto_reset=False,
+        input_threshold=0.001,
+        use_gamepad=True,
+        controller_config_path=None,
+    ):
+        """
+        Initialize the inputs controller wrapper.
+
+        Args:
+            env: The environment to wrap
+            x_step_size: Base movement step size for X axis in meters
+            y_step_size: Base movement step size for Y axis in meters
+            z_step_size: Base movement step size for Z axis in meters
+            use_gripper: Whether to use gripper control
+            auto_reset: Whether to auto reset the environment when episode ends
+            input_threshold: Minimum movement delta to consider as active input
+            use_gamepad: Whether to use gamepad or keyboard control
+            controller_config_path: Path to the controller configuration JSON file
+        """
+        super().__init__(env)
+        from gym_hil.wrappers.intervention_utils import (
+            GamepadController,
+            GamepadControllerHID,
+            KeyboardController,
+        )
+
+        # use HidApi for macos
+        if use_gamepad:
+            if sys.platform == "darwin":
+                self.controller = GamepadControllerHID(
+                    x_step_size=x_step_size,
+                    y_step_size=y_step_size,
+                    z_step_size=z_step_size,
+                )
+            else:
+                self.controller = GamepadController(
+                    x_step_size=x_step_size,
+                    y_step_size=y_step_size,
+                    z_step_size=z_step_size,
+                    config_path=controller_config_path,
+                )
+        else:
+            self.controller = KeyboardController(
+                x_step_size=x_step_size,
+                y_step_size=y_step_size,
+                z_step_size=z_step_size,
+            )
+
+        self.auto_reset = auto_reset
+        self.use_gripper = use_gripper
+        self.input_threshold = input_threshold
+        self.controller.start()
+
+        # Add viewer
+        self._viewer = mujoco.viewer.launch_passive(
+            env.unwrapped.model,
+            env.unwrapped.data
+        )
+
+        self._viewer.sync()
+
+    def get_gamepad_action(self):
+        """
+        Get the current action from the gamepad if any input is active.
+
+        Returns:
+            Tuple of (is_active, action, terminate_episode, success)
+        """
+        # Update the controller to get fresh inputs
+        self.controller.update()
+
+        # Get movement deltas from the controller
+        delta_x, delta_y, delta_z = self.controller.get_deltas()
+
+        intervention_is_active = self.controller.should_intervene()
+
+        # Create action from gamepad input
+        gamepad_action = np.array([delta_x, delta_y, delta_z], dtype=np.float32)
+
+        if self.use_gripper:
+            gripper_command = self.controller.gripper_command()
+            if gripper_command == "open":
+                gamepad_action = np.concatenate([gamepad_action, [2.0]])
+            elif gripper_command == "close":
+                gamepad_action = np.concatenate([gamepad_action, [0.0]])
+            else:
+                gamepad_action = np.concatenate([gamepad_action, [1.0]])
+
+        # Check episode ending buttons
+        # We'll rely on controller.get_episode_end_status() which returns "success", "failure", or None
+        episode_end_status = self.controller.get_episode_end_status()
+        terminate_episode = episode_end_status is not None
+        success = episode_end_status == "success"
+        rerecord_episode = episode_end_status == "rerecord_episode"
+
+        return (
+            intervention_is_active,
+            gamepad_action,
+            terminate_episode,
+            success,
+            rerecord_episode,
+        )
+
+    def step(self, action):
+        """
+        Step the environment, using gamepad input to override actions when active.
+
+        cfg.
+            action: Original action from agent
+
+        Returns:
+            observation, reward, terminated, truncated, info
+        """
+        # Get gamepad state and action
+        (
+            is_intervention,
+            gamepad_action,
+            terminate_episode,
+            success,
+            rerecord_episode,
+        ) = self.get_gamepad_action()
+
+        # Update episode ending state if requested
+        if terminate_episode:
+            logging.info(f"Episode manually ended: {'SUCCESS' if success else 'FAILURE'}")
+
+        if is_intervention:
+            action = gamepad_action
+
+        # Step the environment
+        obs, reward, terminated, truncated, info = self.env.step(action)
+
+        # Add episode ending if requested via gamepad
+        terminated = terminated or truncated or terminate_episode
+
+        if success:
+            reward = 1.0
+            logging.info("Episode ended successfully with reward 1.0")
+
+        info["is_intervention"] = is_intervention
+        action_intervention = action
+
+        info["action_intervention"] = action_intervention
+        info["rerecord_episode"] = rerecord_episode
+
+        # If episode ended, reset the state
+        if terminated or truncated:
+            # Add success/failure information to info dict
+            info["next.success"] = success
+
+            # Auto reset if configured
+            if self.auto_reset:
+                obs, reset_info = self.reset()
+                info.update(reset_info)
+
+        self._viewer.sync()
+        return obs, reward, terminated, truncated, info
+
+    def reset(self, **kwargs):
+        """Reset the environment."""
+        self.controller.reset()
+        self._viewer.sync()
+        return self.env.reset(**kwargs)
+
+    def close(self):
+        """Clean up resources when environment closes."""
+        # Stop the controller
+        if hasattr(self, "controller"):
+            self.controller.stop()
+
+        # 1. Tidy up the renderer managed by the wrapped environment (if any).
+        base_env = self.env.unwrapped  # type: ignore[attr-defined]
+        if hasattr(base_env, "_viewer"):
+            viewer = base_env._viewer
+            if viewer is not None and hasattr(viewer, "close") and callable(viewer.close):
+                try:  # noqa: SIM105
+                    viewer.close()
+                except Exception:
+                    # Ignore errors coming from older MuJoCo versions or
+                    # already-freed contexts.
+                    pass
+            # Prevent the underlying env from trying to close it again.
+            base_env._viewer = None
+
+        # 2. Close the passive viewer launched by this wrapper.
+        try:  # noqa: SIM105
+            self._viewer.close()
+        except Exception:  # pragma: no cover
+            # Defensive: avoid propagating viewer shutdown errors.
+            pass
+
+        # Call the parent close method
+        return self.env.close()
 
 class InputsControlWrapper(gym.Wrapper):
     """

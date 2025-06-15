@@ -97,5 +97,6 @@ register(
         "env_id": "gym_hil/PandaGuessTheOrderBase-v0",
         "use_viewer": True,
         "gripper_penalty": -0.05,
+        "use_gamepad": False
     }
 )

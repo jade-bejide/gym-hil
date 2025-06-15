@@ -27,7 +27,7 @@ import time
 
 _PANDA_HOME = np.asarray((0, 0.195, 0, -2.43, 0, 2.62, 0.785))
 _CARTESIAN_BOUNDS = np.asarray([[0.2, -0.3, 0], [0.6, 0.3, 0.5]])
-_SAMPLING_BOUNDS = np.asarray([[0.5, -0.15], [0.5, 0.15]])
+_SAMPLING_BOUNDS = np.asarray([[0.3, -0.15], [0.5, 0.15]])
 
 class PandaGuessTheOrderGymEnv(FrankaGymEnv):
     """Environment for a Panda robot picking up a cube."""
@@ -112,7 +112,7 @@ class PandaGuessTheOrderGymEnv(FrankaGymEnv):
         self.reset_robot()
         NO_BLOCKS=5
 
-        positions_coords = np.linspace(-0.02, 0.02, NO_BLOCKS)
+        positions_coords = np.linspace(-0.7, 0.7, NO_BLOCKS)
         np.random.shuffle(positions_coords)
 
         central_block = np.random.uniform(*_SAMPLING_BOUNDS)
@@ -127,22 +127,21 @@ class PandaGuessTheOrderGymEnv(FrankaGymEnv):
 
             for block, target, pos in zip(blocks, targets, positions_coords):
                 block_coords = np.array([central_block[0], central_block[1]+pos])
-                target_coords = np.array([central_block[0]+0.1, central_block[1]+pos])
-                self._data.jnt(block).qpos[:3] = (*block_coords, self._block_z)
-                self._data.jnt(target).qpos[:3] = (*target_coords, self._block_z)
+                target_coords = np.array([central_block[0]+0.25, central_block[1]+pos])
+                self._data.joint(block).qpos[:3] = (*block_coords, self._block_z)
+                self._data.joint(target).qpos[:3] = (*target_coords, self._block_z)
             
         else:
             # Not applicable for PandaGuessTheOrder
             pass
-
         mujoco.mj_forward(self._model, self._data)
-
 
         # Cache the initial block height
         self._z_init = self._data.sensor("block1_pos").data[2]
         self._z_success = self._z_init + 0.1
 
         obs = self._compute_observation()
+
         return obs, {}
 
     def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:
@@ -246,7 +245,6 @@ class PandaGuessTheOrderGymEnv(FrankaGymEnv):
 # Enables keyboard control of Gym environment - for episode recording
 def human_in_the_loop():
     env = PandaGuessTheOrderGymEnv(render_mode="human", random_block_position=True, image_obs=True)
-
     obs, _ = env.reset()
 
     print("Observation keys:", list(obs.keys()))
@@ -262,7 +260,7 @@ def human_in_the_loop():
         max_episode_steps=50000
     )
 
-    obs, _ = env.reset()
+    # obs, _ = env.reset()
     dummy_action = np.zeros(4, dtype=np.float32)
     # This ensures the "stay gripper" action is set when the intervention button is not pressed
     dummy_action[-1] = 1
@@ -293,10 +291,11 @@ def human_in_the_loop():
 
 if __name__ == "__main__":
     from gym_hil import PassiveViewerWrapper
-    human_in_the_loop()
-    # env = PandaGuessTheOrderEnv(render_mode="human", random_block_position=True)
-    # env = PassiveViewerWrapper(env)
-    # env.reset()
-    # for _ in range(1000):
-    #     env.step(np.random.uniform(-1, 1, 7))
-    # env.close()
+    from gym_hil.wrappers.hil_wrappers import InputsControlViewerWrapper
+    # human_in_the_loop()
+    env = PandaGuessTheOrderGymEnv(render_mode="human", random_block_position=True)
+    env = InputsControlViewerWrapper(env, use_gamepad=False)
+    env.reset()
+    for _ in range(1000):
+        env.step(np.random.uniform(-1, 1, 7))
+    env.close()
