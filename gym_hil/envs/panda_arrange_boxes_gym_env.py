@@ -184,14 +184,14 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
     
     def _compute_reward(self) -> float:
         block_sensors, target_sensors = self.get_sensors()
-        pairs = zip(block_sensors, target_sensors)
-        distances = list(map(lambda pair: np.exp(-20 * np.linalg.norm(pair[0].data-pair[1].data)), pairs))
+        block_target_pairs = zip(block_sensors, target_sensors)
+        distances = list(map(lambda pair: np.exp(-20 * np.linalg.norm(pair[0].data-pair[1].data)), block_target_pairs))
         return sum(distances)
     
     def _is_success(self) -> bool:
         block_sensors, target_sensors = self.get_sensors()
-        pairs = zip(block_sensors, target_sensors)
-        distances = list(map(lambda pair: np.linalg.norm(pair[0].data-pair[1].data), pairs))
+        block_target_pairs = zip(block_sensors, target_sensors)
+        distances = list(map(lambda pair: np.linalg.norm(pair[0].data-pair[1].data), block_target_pairs))
 
-        return all(list(map(lambda dist: dist < 0.05, distances)))
+        return all(list(map(lambda dist: np.exp(-20 * dist) > 0.8, distances)))
     
