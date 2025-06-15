@@ -29,7 +29,7 @@ _PANDA_HOME = np.asarray((0, 0.195, 0, -2.43, 0, 2.62, 0.785))
 _CARTESIAN_BOUNDS = np.asarray([[0.2, -0.3, 0], [0.6, 0.3, 0.5]])
 _SAMPLING_BOUNDS = np.asarray([[0.5, -0.15], [0.5, 0.15]])
 
-class PandaGuessTheOrderEnv(FrankaGymEnv):
+class PandaGuessTheOrderGymEnv(FrankaGymEnv):
     """Environment for a Panda robot picking up a cube."""
 
     def __init__(
@@ -58,7 +58,7 @@ class PandaGuessTheOrderEnv(FrankaGymEnv):
         )
 
         # Task-specific setup
-        self._block_z = self._model.geom("block").size[2]
+        self._block_z = self._model.geom("block1").size[2]
         self._random_block_position = random_block_position
 
         # Setup observation space properly to match what _compute_observation returns
@@ -110,47 +110,36 @@ class PandaGuessTheOrderEnv(FrankaGymEnv):
 
         # Reset the robot to home position
         self.reset_robot()
+        NO_BLOCKS=5
 
-        positions_coords = [-0.5, -0.3, 0, 0.3, 0.5]
-        central_block = None
+        positions_coords = np.linspace(-0.02, 0.02, NO_BLOCKS)
+        np.random.shuffle(positions_coords)
+
+        central_block = np.random.uniform(*_SAMPLING_BOUNDS)
         # Sample a new block position
         if self._random_block_position:
-            block_xy = np.random.uniform(*_SAMPLING_BOUNDS)
-            central_block = block_xy
-            self._data.jnt("block").qpos[:3] = (*block_xy, self._block_z)
-
-
-            blocks = [f"block{i}" for i in range(2,6)]
+            # self._data.jnt("block1").qpos[:3] = (*block_xy, self._block_z)
+            blocks = [f"block{i}" for i in range(1,NO_BLOCKS+1)]
             np.random.shuffle(blocks)
-            for block, pos in zip(blocks, positions_coords):
-                coords = np.array([block_xy[0], block_xy[1]+pos])
-                self._data.jnt(block).qpos[:3] = (*coords, self._block_z)
+            # Add in the target positions
+            targets = [f"target{i}" for i in range(1,NO_BLOCKS+1)]
+            np.random.shuffle(targets)
 
+            for block, target, pos in zip(blocks, targets, positions_coords):
+                block_coords = np.array([central_block[0], central_block[1]+pos])
+                target_coords = np.array([central_block[0]+0.1, central_block[1]+pos])
+                self._data.jnt(block).qpos[:3] = (*block_coords, self._block_z)
+                self._data.jnt(target).qpos[:3] = (*target_coords, self._block_z)
+            
         else:
-            block_xy = np.asarray([0.5, 0.0])
-            central_block = block_xy
-            self._data.jnt("block").qpos[:3] = (*block_xy, self._block_z)
-            block_xy = np.asarray([0.5, 0.3])
-            self._data.jnt("block2").qpos[:3] = (*block_xy, self._block_z)
-            block_xy = np.asarray([0.5, 0.5])
-            self._data.jnt("block3").qpos[:3] = (*block_xy, self._block_z)
-            block_xy = np.asarray([0.5, -0.3])
-            self._data.jnt("block4").qpos[:3] = (*block_xy, self._block_z)
-            block_xy = np.asarray([0.5, -0.5])
-            self._data.jnt("block5").qpos[:3] = (*block_xy, self._block_z)
-
-        # Add in the target positions
-        targets = [f"target{i}" for i in range(1,6)]
-        np.random.shuffle(targets)
-        for target, pos in zip(targets, positions_coords):
-            target = self._model.body(target).id
-            coords = np.array([0.7, central_block[1]+pos, self._block_z])
-            self._model.body_pos[target] = coords
+            # Not applicable for PandaGuessTheOrder
+            pass
 
         mujoco.mj_forward(self._model, self._data)
 
+
         # Cache the initial block height
-        self._z_init = self._data.sensor("block_pos").data[2]
+        self._z_init = self._data.sensor("block1_pos").data[2]
         self._z_success = self._z_init + 0.1
 
         obs = self._compute_observation()
@@ -163,14 +152,14 @@ class PandaGuessTheOrderEnv(FrankaGymEnv):
 
         # Compute observation, reward and termination
         obs = self._compute_observation()
-        rew = self._compute_reward()
-        success = self._is_success()
+        rew = self._compute_reward2()
+        success = self._is_success2()
 
         if self.reward_type == "sparse":
             success = rew == 1.0
 
         # Check if block is outside bounds
-        block_pos = self._data.sensor("block_pos").data
+        block_pos = self._data.sensor("block1_pos").data
         exceeded_bounds = np.any(block_pos[:2] < (_SAMPLING_BOUNDS[0] - 0.05)) or np.any(
             block_pos[:2] > (_SAMPLING_BOUNDS[1] + 0.05)
         )
@@ -188,7 +177,7 @@ class PandaGuessTheOrderEnv(FrankaGymEnv):
         robot_state = self.get_robot_state().astype(np.float32)
 
         # Assemble observation respecting the newly defined observation_space
-        block_pos = self._data.sensor("block_pos").data.astype(np.float32)
+        block_pos = self._data.sensor("block1_pos").data.astype(np.float32)
 
         if self.image_obs:
             # Image observations
@@ -208,7 +197,7 @@ class PandaGuessTheOrderEnv(FrankaGymEnv):
 
     def _compute_reward(self) -> float:
         """Compute reward based on current state."""
-        block_pos = self._data.sensor("block_pos").data
+        block_pos = self._data.sensor("block1_pos").data
 
         if self.reward_type == "dense":
             tcp_pos = self._data.sensor("2f85/pinch_pos").data
@@ -220,19 +209,43 @@ class PandaGuessTheOrderEnv(FrankaGymEnv):
         else:
             lift = block_pos[2] - self._z_init
             return float(lift > 0.1)
+        
+
 
     def _is_success(self) -> bool:
         """Check if the task is successfully completed."""
-        block_pos = self._data.sensor("block_pos").data
+        block_pos = self._data.sensor("block1_pos").data
         tcp_pos = self._data.sensor("2f85/pinch_pos").data
         dist = np.linalg.norm(block_pos - tcp_pos)
         lift = block_pos[2] - self._z_init
         return dist < 0.05 and lift > 0.1
+    
+    # second reward function and terminating condition based on target position
+
+    def get_sensors(self):
+        block_sensors = [self._data.sensor(f"block{i}_pos") for i in range(1,6)]
+        target_sensors = [self._data.sensor(f"target{i}_pos") for i in range(1,6)]
+        return block_sensors, target_sensors
+    
+    def _compute_reward2(self) -> float:
+        block_sensors, target_sensors = self.get_sensors()
+        pairs = zip(block_sensors, target_sensors)
+        distances = list(map(lambda pair: np.exp(-20 * np.linalg.norm(pair[0].data-pair[1].data)), pairs))
+        return sum(distances)
+    
+    def _is_success2(self) -> bool:
+        block_sensors, target_sensors = self.get_sensors()
+        pairs = zip(block_sensors, target_sensors)
+        distances = list(map(lambda pair: np.linalg.norm(pair[0].data-pair[1].data), pairs))
+
+        return all(list(map(lambda dist: dist < 0.05, distances)))
+
+
 
 
 # Enables keyboard control of Gym environment - for episode recording
 def human_in_the_loop():
-    env = PandaGuessTheOrderEnv(render_mode="human", random_block_position=True, image_obs=True)
+    env = PandaGuessTheOrderGymEnv(render_mode="human", random_block_position=True, image_obs=True)
 
     obs, _ = env.reset()
 
@@ -246,7 +259,7 @@ def human_in_the_loop():
         render_mode="human",
         image_obs=True,
         use_gamepad=False,
-        max_episode_steps=1000
+        max_episode_steps=50000
     )
 
     obs, _ = env.reset()
@@ -264,9 +277,9 @@ def human_in_the_loop():
                 print("\nSuccess! Block has been picked up.")
 
             # If auto-reset is disabled, manually reset when episode ends
-            if terminated or truncated:
-                print("Episode ended, resetting environment")
-                obs, _ = env.reset()
+            # if terminated or truncated:
+            #     print("Episode ended, resetting environment")
+            #     obs, _ = env.reset()
 
             # Add a small delay to control update rate
             time.sleep(0.05)

@@ -15,7 +15,9 @@
 # limitations under the License.
 
 from gym_hil.envs.panda_pick_gym_env import PandaPickCubeGymEnv
+from gym_hil.envs.panda_guess_the_order_gym_env import PandaGuessTheOrderGymEnv
 
 __all__ = [
     "PandaPickCubeGymEnv",
+    "PandaGuessTheOrderGymEnv"
 ]

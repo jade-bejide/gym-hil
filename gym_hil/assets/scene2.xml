@@ -21,11 +21,11 @@
     <worldbody>
       <camera name="front" pos="1.3 0.0 0.7" quat="0.5963678 0.3799282 0.3799282 0.5963678" fovy="45"/>
       <light pos="0 0 3" dir="0 0 -1" diffuse="1 1 1" specular=".3 .3 .3"/>
-      <light pos="0 -.5 .4" mode="targetbodycom" target="block" diffuse=".8 .8 .8" specular=".3 .3 .3"/>
+      <light pos="0 -.5 .4" mode="targetbodycom" target="block1" diffuse=".8 .8 .8" specular=".3 .3 .3"/>
       <geom name="floor" size="3 3 0.01" type="plane" material="grid"/>
-      <body name="block" pos="0.5 0 .02">
-        <freejoint name="block"/>
-        <geom name="block" type="box" size=".02 .02 .02" mass="0.1" rgba="1.0 .0 .0 1"/>
+      <body name="block1" pos="0.5 0 .02">
+        <freejoint name="block1"/>
+        <geom name="block1" type="box" size=".02 .02 .02" mass="0.1" rgba="1.0 .0 .0 1"/>
       </body>
       <body name="block2" pos="0.5 0 .02">
         <freejoint name="block2"/>
@@ -48,29 +48,35 @@
       </body>
 
       <!-- Targets-->
-      <body name="target1" pos="0.5 0 .02">
-        <geom name="target1" type="box" size=".02 .02 .005"  contype="0" conaffinity="0" rgba="1.0 .0 .0 1"/>
+      <body name="target1" pos="-0.7 0.5 .02">
+        <freejoint name="target1"/>
+        <geom name="target1" type="box" size=".05 .05 .005" mass="0.1"  rgba="1.0 .0 .0 1"/>
       </body>
-      <body name="target2" pos="0.5 0 .02">
-        <geom name="target2" type="box" size=".02 .02 .005"  contype="0" conaffinity="0" rgba=".0 .0 1.0 1"/>
+      <body name="target2" pos="-0.35 0.5 .02">
+        <freejoint name="target2"/>
+        <geom name="target2" type="box" size=".05 .05 .005" mass="0.1"  rgba=".0 .0 1.0 1"/>
       </body>
-      <body name="target3" pos="0.5 0 .02">
-        <geom name="target3" type="box" size=".02 .02 .005"  contype="0" conaffinity="0" rgba=".1 .3 .1 1"/>
+      <body name="target3" pos="0 0.5 .02">
+        <freejoint name="target3"/>
+        <geom name="target3" type="box" size=".05 .05 .005"  mass="0.1"  rgba=".1 .3 .1 1"/>
       </body>
-      <body name="target4" pos="0.5 0 .02">
-        <geom name="target4" type="box" size=".02 .02 .005"  contype="0" conaffinity="0" rgba=".2 .66 .32 1"/>
+      <body name="target4" pos="0.35 0.5 .02">
+        <freejoint name="target4"/>
+        <geom name="target4" type="box" size=".05 .05 .005" mass="0.1"  rgba=".2 .66 .32 1"/>
       </body>
-      <body name="target5" pos="0.5 0 .02">
-        <geom name="target5" type="box" size=".02 .02 .005"  contype="0" conaffinity="0" rgba=".6 .3 .6 1"/>
+      <body name="target5" pos="0.7 0.5 .02">
+        <freejoint name="target5"/>
+        <geom name="target5" type="box" size=".05 .05 .005" mass="0.1"  rgba=".6 .3 .6 1"/>
       </body>
       
     </worldbody>
 
+    <!-- Block Sensors -->
     <sensor>
-      <framepos name="block_pos" objtype="geom" objname="block"/>
-      <framequat name="block_quat" objtype="geom" objname="block"/>
+      <framepos name="block1_pos" objtype="geom" objname="block1"/>
+      <framequat name="block1_quat" objtype="geom" objname="block1"/>
     </sensor>
-    <!-- <sensor>
+    <sensor>
       <framepos name="block2_pos" objtype="geom" objname="block2"/>
       <framequat name="block2_quat" objtype="geom" objname="block2"/>
     </sensor>
@@ -85,5 +91,29 @@
     <sensor>
       <framepos name="block5_pos" objtype="geom" objname="block5"/>
       <framequat name="block5_quat" objtype="geom" objname="block5"/>
-    </sensor> -->
+    </sensor>
+
+    <!-- Target Sensors -->
+    <sensor>
+      <framepos name="target1_pos" objtype="geom" objname="target1"/>
+      <framequat name="target1_quat" objtype="geom" objname="target1"/>
+    </sensor>
+    <sensor>
+      <framepos name="target2_pos" objtype="geom" objname="target2"/>
+      <framequat name="target2_quat" objtype="geom" objname="target2"/>
+    </sensor>
+    <sensor>
+      <framepos name="target3_pos" objtype="geom" objname="target3"/>
+      <framequat name="target3_quat" objtype="geom" objname="target3"/>
+    </sensor>
+    <sensor>
+      <framepos name="target4_pos" objtype="geom" objname="target4"/>
+      <framequat name="target4_quat" objtype="geom" objname="target4"/>
+    </sensor>
+    <sensor>
+      <framepos name="target5_pos" objtype="geom" objname="target5"/>
+      <framequat name="target5_quat" objtype="geom" objname="target5"/>
+    </sensor>
+
+
   </mujoco>
