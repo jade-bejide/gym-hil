@@ -111,21 +111,24 @@ class PandaGuessTheOrderEnv(FrankaGymEnv):
         # Reset the robot to home position
         self.reset_robot()
 
+        positions_coords = [-0.5, -0.3, 0, 0.3, 0.5]
+        central_block = None
         # Sample a new block position
         if self._random_block_position:
             block_xy = np.random.uniform(*_SAMPLING_BOUNDS)
+            central_block = block_xy
             self._data.jnt("block").qpos[:3] = (*block_xy, self._block_z)
 
 
             blocks = [f"block{i}" for i in range(2,6)]
             np.random.shuffle(blocks)
-            positions_coords = [-0.5, -0.3, 0.5, 0.3]
             for block, pos in zip(blocks, positions_coords):
                 coords = np.array([block_xy[0], block_xy[1]+pos])
                 self._data.jnt(block).qpos[:3] = (*coords, self._block_z)
 
         else:
             block_xy = np.asarray([0.5, 0.0])
+            central_block = block_xy
             self._data.jnt("block").qpos[:3] = (*block_xy, self._block_z)
             block_xy = np.asarray([0.5, 0.3])
             self._data.jnt("block2").qpos[:3] = (*block_xy, self._block_z)
@@ -135,6 +138,15 @@ class PandaGuessTheOrderEnv(FrankaGymEnv):
             self._data.jnt("block4").qpos[:3] = (*block_xy, self._block_z)
             block_xy = np.asarray([0.5, -0.5])
             self._data.jnt("block5").qpos[:3] = (*block_xy, self._block_z)
+
+        # Add in the target positions
+        targets = [f"target{i}" for i in range(1,6)]
+        np.random.shuffle(targets)
+        for target, pos in zip(targets, positions_coords):
+            target = self._model.body(target).id
+            coords = np.array([0.7, central_block[1]+pos, self._block_z])
+            self._model.body_pos[target] = coords
+
         mujoco.mj_forward(self._model, self._data)
 
         # Cache the initial block height
@@ -218,7 +230,7 @@ class PandaGuessTheOrderEnv(FrankaGymEnv):
         return dist < 0.05 and lift > 0.1
 
 
-
+# Enables keyboard control of Gym environment - for episode recording
 def human_in_the_loop():
     env = PandaGuessTheOrderEnv(render_mode="human", random_block_position=True, image_obs=True)
 
