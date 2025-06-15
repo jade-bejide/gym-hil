@@ -14,20 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
+import gymnasium as gym
 from typing import Any, Dict, Literal, Tuple
-
+from pathlib import Path
 import mujoco
 import numpy as np
 from gymnasium import spaces
 
 from gym_hil.mujoco_gym_env import FrankaGymEnv, GymRenderingSpec
+import time
 
 _PANDA_HOME = np.asarray((0, 0.195, 0, -2.43, 0, 2.62, 0.785))
 _CARTESIAN_BOUNDS = np.asarray([[0.2, -0.3, 0], [0.6, 0.3, 0.5]])
-_SAMPLING_BOUNDS = np.asarray([[0.3, -0.15], [0.5, 0.15]])
+_SAMPLING_BOUNDS = np.asarray([[0.5, -0.15], [0.5, 0.15]])
 
-
-class PandaPickCubeGymEnv(FrankaGymEnv):
+class PandaGuessTheOrderEnv(FrankaGymEnv):
     """Environment for a Panda robot picking up a cube."""
 
     def __init__(
@@ -52,6 +54,7 @@ class PandaPickCubeGymEnv(FrankaGymEnv):
             image_obs=image_obs,
             home_position=_PANDA_HOME,
             cartesian_bounds=_CARTESIAN_BOUNDS,
+            xml_path= Path(__file__).parent.parent / "assets" / "scene2.xml"
         )
 
         # Task-specific setup
@@ -112,9 +115,26 @@ class PandaPickCubeGymEnv(FrankaGymEnv):
         if self._random_block_position:
             block_xy = np.random.uniform(*_SAMPLING_BOUNDS)
             self._data.jnt("block").qpos[:3] = (*block_xy, self._block_z)
+
+
+            blocks = [f"block{i}" for i in range(2,6)]
+            np.random.shuffle(blocks)
+            positions_coords = [-0.5, -0.3, 0.5, 0.3]
+            for block, pos in zip(blocks, positions_coords):
+                coords = np.array([block_xy[0], block_xy[1]+pos])
+                self._data.jnt(block).qpos[:3] = (*coords, self._block_z)
+
         else:
             block_xy = np.asarray([0.5, 0.0])
             self._data.jnt("block").qpos[:3] = (*block_xy, self._block_z)
+            block_xy = np.asarray([0.5, 0.3])
+            self._data.jnt("block2").qpos[:3] = (*block_xy, self._block_z)
+            block_xy = np.asarray([0.5, 0.5])
+            self._data.jnt("block3").qpos[:3] = (*block_xy, self._block_z)
+            block_xy = np.asarray([0.5, -0.3])
+            self._data.jnt("block4").qpos[:3] = (*block_xy, self._block_z)
+            block_xy = np.asarray([0.5, -0.5])
+            self._data.jnt("block5").qpos[:3] = (*block_xy, self._block_z)
         mujoco.mj_forward(self._model, self._data)
 
         # Cache the initial block height
@@ -198,13 +218,60 @@ class PandaPickCubeGymEnv(FrankaGymEnv):
         return dist < 0.05 and lift > 0.1
 
 
+
+def human_in_the_loop():
+    env = PandaGuessTheOrderEnv(render_mode="human", random_block_position=True, image_obs=True)
+
+    obs, _ = env.reset()
+
+    print("Observation keys:", list(obs.keys()))
+    if "pixels" in obs:
+        print("Pixels keys:", list(obs["pixels"].keys()))
+
+    env_id = "gym_hil/PandaGuessTheOrderKeyboard-v0"
+    env = gym.make(
+        env_id,
+        render_mode="human",
+        image_obs=True,
+        use_gamepad=False,
+        max_episode_steps=1000
+    )
+
+    obs, _ = env.reset()
+    dummy_action = np.zeros(4, dtype=np.float32)
+    # This ensures the "stay gripper" action is set when the intervention button is not pressed
+    dummy_action[-1] = 1
+
+    try:
+        while True:
+            # Step the environment
+            obs, reward, terminated, truncated, info = env.step(dummy_action)
+
+            # Print some feedback
+            if info.get("succeed", False):
+                print("\nSuccess! Block has been picked up.")
+
+            # If auto-reset is disabled, manually reset when episode ends
+            if terminated or truncated:
+                print("Episode ended, resetting environment")
+                obs, _ = env.reset()
+
+            # Add a small delay to control update rate
+            time.sleep(0.05)
+
+    except KeyboardInterrupt:
+        print("Interrupted by user")
+    finally:
+        env.close()
+        print("Session ended")
+
+
 if __name__ == "__main__":
     from gym_hil import PassiveViewerWrapper
-
-    env = PandaPickCubeGymEnv(render_mode="human")
-    env = PassiveViewerWrapper(env)
-    env.reset()
-    for _ in range(100):
-        # TODO: Switch with informed actions / HIRL
-        env.step(np.random.uniform(-1, 1, 7))
-    env.close()
+    human_in_the_loop()
+    # env = PandaGuessTheOrderEnv(render_mode="human", random_block_position=True)
+    # env = PassiveViewerWrapper(env)
+    # env.reset()
+    # for _ in range(1000):
+    #     env.step(np.random.uniform(-1, 1, 7))
+    # env.close()
