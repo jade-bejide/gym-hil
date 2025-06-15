@@ -48,8 +48,8 @@
       </body>
 
       <!-- Targets-->
-      <body name="target1" pos="0.5 -0.7  .02">
-        <freejoint name="target1"/>
+      <body name="target1" pos="0.5 -0.7 .02">
+        <joint type="free" damping="0" frictionloss="0" armature="0" stiffness="0" name="target1" />
         <geom name="target1" type="box" size=".05 .05 .005" mass="0.1"  rgba="1.0 .0 .0 1"/>
       </body>
       <body name="target2" pos=" 0.5 -0.35 .02">

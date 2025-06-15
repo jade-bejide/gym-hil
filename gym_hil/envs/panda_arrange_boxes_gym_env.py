@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import argparse
 import gymnasium as gym
 from typing import Any, Dict, Literal, Tuple
 from pathlib import Path
@@ -23,13 +22,12 @@ import numpy as np
 from gymnasium import spaces
 
 from gym_hil.mujoco_gym_env import FrankaGymEnv, GymRenderingSpec
-import time
 
 _PANDA_HOME = np.asarray((0, 0.195, 0, -2.43, 0, 2.62, 0.785))
-_CARTESIAN_BOUNDS = np.asarray([[0.2, -0.3, 0], [0.6, 0.3, 0.5]])
+_CARTESIAN_BOUNDS = np.asarray([[-0.5, -0.3, 0], [1.5, 0.3, 0.5]])
 _SAMPLING_BOUNDS = np.asarray([[0.3, -0.15], [0.5, 0.15]])
 
-class PandaGuessTheOrderGymEnv(FrankaGymEnv):
+class PandaArrangeBoxesGymEnv(FrankaGymEnv):
     """Environment for a Panda robot picking up a cube."""
 
     def __init__(
@@ -130,7 +128,7 @@ class PandaGuessTheOrderGymEnv(FrankaGymEnv):
                 self._data.joint(block).qpos[:3] = (*block_coords, self._block_z)
                 self._data.joint(target).qpos[:3] = (*target_coords, self._block_z)      
         else:
-            # Not applicable for PandaGuessTheOrder
+            # Not applicable for PandaArrangeBoxes
             pass
         
         mujoco.mj_forward(self._model, self._data)
@@ -157,14 +155,12 @@ class PandaGuessTheOrderGymEnv(FrankaGymEnv):
             success = rew == 1.0
 
         # Check if block is outside bounds
-        block_pos = self._data.sensor("block1_pos").data
-        exceeded_bounds = np.any(block_pos[:2] < (_SAMPLING_BOUNDS[0] - 0.05)) or np.any(
-            block_pos[:2] > (_SAMPLING_BOUNDS[1] + 0.05)
-        )
+        # block_pos = self._data.sensor("block1_pos").data
+        # exceeded_bounds = np.any(block_pos[:2] < (_SAMPLING_BOUNDS[0] - 0.05)) or np.any(
+        #     block_pos[:2] > (_SAMPLING_BOUNDS[1] + 0.05)
+        # )
 
-        exceeded_bounds = False
-
-        terminated = bool(success or exceeded_bounds)
+        terminated = bool(success)
 
         return obs, rew, terminated, False, {"succeed": success}
 
@@ -194,8 +190,6 @@ class PandaGuessTheOrderGymEnv(FrankaGymEnv):
             }
 
         return observation
-    
-    # second reward function and terminating condition based on target position
 
     def get_sensors(self):
         block_sensors = [self._data.sensor(f"block{i}_pos") for i in range(1,self.no_blocks+1)]

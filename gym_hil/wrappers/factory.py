@@ -5,7 +5,7 @@ from typing import TypedDict
 import gymnasium as gym
 
 from gym_hil.envs.panda_pick_gym_env import PandaPickCubeGymEnv
-from gym_hil.envs.panda_guess_the_order_gym_env import PandaGuessTheOrderGymEnv
+from gym_hil.envs.panda_arrange_boxes_gym_env import PandaArrangeBoxesGymEnv
 from gym_hil.wrappers.hil_wrappers import (
     DEFAULT_EE_STEP_SIZE,
     EEActionWrapper,
@@ -115,8 +115,8 @@ def make_env(
     # Create the base environment directly
     if env_id == "gym_hil/PandaPickCubeBase-v0":
         env = PandaPickCubeGymEnv(**kwargs)
-    elif env_id == "gym_hil/PandaGuessTheOrderBase-v0":
-        env = PandaGuessTheOrderGymEnv(**kwargs)
+    elif env_id == "gym_hil/PandaArrangeBoxesBase-v0":
+        env = PandaArrangeBoxesGymEnv(**kwargs)
     else:
         raise ValueError(f"Environment ID {env_id} not supported")
 

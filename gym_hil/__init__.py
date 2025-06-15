@@ -39,8 +39,8 @@ register(
 )
 
 register(
-    id="gym_hil/PandaGuessTheOrderBase-v0",  # This is the base environment
-    entry_point="gym_hil.envs:PandaGuessTheOrderGymEnv",
+    id="gym_hil/PandaArrangeBoxesBase-v0",  # This is the base environment
+    entry_point="gym_hil.envs:PandaArrangeBoxesGymEnv",
     max_episode_steps=100,   
 )
 
@@ -52,8 +52,8 @@ register(
 )
 
 register(
-    id="gym_hil/PandaGuessTheOrderViewer-v0",
-    entry_point=lambda **kwargs: PassiveViewerWrapper(gym.make("gym_hil/PandaGuessTheOrderBase-v0", **kwargs)),
+    id="gym_hil/PandaArrangeBoxesViewer-v0",
+    entry_point=lambda **kwargs: PassiveViewerWrapper(gym.make("gym_hil/PandaArrangeBoxesBase-v0", **kwargs)),
     max_episode_steps=100,
 )
 
@@ -90,7 +90,7 @@ register(
 )
 
 register(
-    id="gym_hil/PandaGuessTheOrder-v0",
+    id="gym_hil/PandaArrangeBoxes-v0",
     entry_point="gym_hil.wrappers.factory:make_env",
     max_episode_steps=100,
     kwargs={
@@ -99,22 +99,22 @@ register(
 )
 
 register(
-    id="gym_hil/PandaGuessTheOrderGamepad-v0",
+    id="gym_hil/PandaArrangeBoxesGamepad-v0",
     entry_point="gym_hil.wrappers.factory:make_env",
     max_episode_steps=100,
     kwargs={
-        "env_id": "gym_hil/PandaGuessTheOrderBase-v0",  # Use the base environment
+        "env_id": "gym_hil/PandaArrangeBoxesBase-v0",  # Use the base environment
         "use_viewer": True,
         "use_gamepad": True,
     },
 )
 
 register(
-    id="gym_hil/PandaGuessTheOrderKeyboard-v0",
+    id="gym_hil/PandaArrangeBoxesKeyboard-v0",
     entry_point="gym_hil.wrappers.factory:make_env",
     max_episode_steps=100,
     kwargs={
-        "env_id": "gym_hil/PandaGuessTheOrderBase-v0",
+        "env_id": "gym_hil/PandaArrangeBoxesBase-v0",
         "use_viewer": True,
         "gripper_penalty": -0.05
     }
