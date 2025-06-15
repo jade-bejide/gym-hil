@@ -21,9 +21,6 @@ import time
 import gymnasium as gym
 import numpy as np
 
-import mujoco
-import mujoco.viewer
-
 from gym_hil.mujoco_gym_env import MAX_GRIPPER_COMMAND
 
 DEFAULT_EE_STEP_SIZE = {"x": 0.025, "y": 0.025, "z": 0.025}

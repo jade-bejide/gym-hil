@@ -94,7 +94,7 @@ register(
     entry_point="gym_hil.wrappers.factory:make_env",
     max_episode_steps=100,
     kwargs={
-        "env_id": "gym_hil/PandaPickCubeBase-v0",  # Use the base environment
+        "env_id": "gym_hil/PandaArrangeBoxesBase-v0",  # Use the base environment
     },
 )
 

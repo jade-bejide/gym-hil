@@ -18,10 +18,7 @@ from __future__ import annotations
 
 import gymnasium as gym
 import mujoco
-import numpy as np
 import mujoco.viewer
-
-import sys
 
 
 class PassiveViewerWrapper(gym.Wrapper):

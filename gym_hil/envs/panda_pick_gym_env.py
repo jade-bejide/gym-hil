@@ -205,6 +205,5 @@ if __name__ == "__main__":
     env = PassiveViewerWrapper(env)
     env.reset()
     for _ in range(100):
-        # TODO: Switch with informed actions / HIRL
         env.step(np.random.uniform(-1, 1, 7))
     env.close()
