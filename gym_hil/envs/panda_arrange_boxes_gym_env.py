@@ -25,7 +25,6 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         render_mode: Literal["rgb_array", "human"] = "rgb_array",
         image_obs: bool = False,
         reward_type: str = "sparse",
-        random_block_position: bool = True,
     ):
         self.reward_type = reward_type
 
@@ -43,7 +42,6 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
 
         # Task-specific setup
         self._block_z = self._model.geom("block1").size[2]
-        self._random_block_position = random_block_position
 
         # Setup observation space properly to match what _compute_observation returns
         # Observation space design:
@@ -55,6 +53,7 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         agent_box = spaces.Box(-np.inf, np.inf, (agent_dim,), dtype=np.float32)
         env_box = spaces.Box(-np.inf, np.inf, (3,), dtype=np.float32)
         self.no_blocks = 5
+        self.block_range = 0.3
 
         if self.image_obs:
             self.observation_space = spaces.Dict(
@@ -96,26 +95,23 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         # Reset the robot to home position
         self.reset_robot()
 
-        positions_coords = np.linspace(-0.3, 0.3, self.no_blocks)
+        positions_coords = np.linspace(-self.block_range, self.block_range, self.no_blocks)
         np.random.shuffle(positions_coords)
 
         central_block = np.random.uniform(*_SAMPLING_BOUNDS)
         # Sample a new block position
-        if self._random_block_position:
-            blocks = [f"block{i}" for i in range(1,self.no_blocks+1)]
-            np.random.shuffle(blocks)
-            # Add in the target positions
-            targets = [f"target{i}" for i in range(1,self.no_blocks+1)]
-            np.random.shuffle(targets)
+        blocks = [f"block{i}" for i in range(1,self.no_blocks+1)]
+        np.random.shuffle(blocks)
+        # Add in the target positions
+        targets = [f"target{i}" for i in range(1,self.no_blocks+1)]
+        np.random.shuffle(targets)
 
-            for block, target, pos in zip(blocks, targets, positions_coords):
-                block_coords = np.array([central_block[0], central_block[1]+pos])
-                target_coords = np.array([central_block[0]+0.15, central_block[1]+pos])
-                self._data.joint(block).qpos[:3] = (*block_coords, self._block_z)
-                self._data.joint(target).qpos[:3] = (*target_coords, self._block_z)      
-        else:
-            # Not applicable for PandaArrangeBoxes
-            pass
+        for block, target, pos in zip(blocks, targets, positions_coords):
+            block_coords = np.array([central_block[0], central_block[1]+pos])
+            target_coords = np.array([central_block[0]+(self.block_range/2), central_block[1]+pos])
+            self._data.joint(block).qpos[:3] = (*block_coords, self._block_z)
+            self._data.joint(target).qpos[:3] = (*target_coords, self._block_z)      
+
         
         mujoco.mj_forward(self._model, self._data)
 
@@ -141,12 +137,12 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
             success = rew == 1.0
 
         # Check if block is outside bounds
-        # block_pos = self._data.sensor("block1_pos").data
-        # exceeded_bounds = np.any(block_pos[:2] < (_SAMPLING_BOUNDS[0] - 0.05)) or np.any(
-        #     block_pos[:2] > (_SAMPLING_BOUNDS[1] + 0.05)
-        # )
+        block_pos = self._data.sensor("block1_pos").data
+        exceeded_bounds = np.any(block_pos[:2] < (_SAMPLING_BOUNDS[0] - self.block_range - 0.05)) or np.any(
+            block_pos[:2] > (_SAMPLING_BOUNDS[1] + self.block_range + 0.05)
+        )
 
-        terminated = bool(success)
+        terminated = bool(success or exceeded_bounds)
 
         return obs, rew, terminated, False, {"succeed": success}
 
