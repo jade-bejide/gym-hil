@@ -10,7 +10,7 @@ from gymnasium import spaces
 from gym_hil.mujoco_gym_env import FrankaGymEnv, GymRenderingSpec
 
 _PANDA_HOME = np.asarray((0, 0.195, 0, -2.43, 0, 2.62, 0.785))
-_CARTESIAN_BOUNDS = np.asarray([[-0.5, -0.3, 0], [1.5, 0.3, 0.5]])
+_CARTESIAN_BOUNDS = np.asarray([[0.2, -0.5, 0], [0.6, 0.5, 0.5]])
 _SAMPLING_BOUNDS = np.asarray([[0.3, -0.15], [0.5, 0.15]])
 
 class PandaArrangeBoxesGymEnv(FrankaGymEnv):
@@ -37,7 +37,7 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
             image_obs=image_obs,
             home_position=_PANDA_HOME,
             cartesian_bounds=_CARTESIAN_BOUNDS,
-            xml_path= Path(__file__).parent.parent / "assets" / "scene2.xml"
+            xml_path= Path(__file__).parent.parent / "assets" / "arrange_boxes_scene.xml"
         )
 
         # Task-specific setup

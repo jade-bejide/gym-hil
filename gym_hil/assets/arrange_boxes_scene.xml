@@ -1,4 +1,4 @@
-<mujoco model="Scene2">
+<mujoco model="ArrangeBoxesScene">
     <include file="panda.xml"/>
 
     <option timestep=".002" noslip_iterations="5" noslip_tolerance="0"/>
