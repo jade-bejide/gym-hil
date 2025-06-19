@@ -102,23 +102,12 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         # Sample a new block position
         blocks = [f"block{i}" for i in range(1,self.no_blocks+1)]
         np.random.shuffle(blocks)
-        # Add in the target positions
-        targets = [f"target{i}" for i in range(1,self.no_blocks+1)]
-        np.random.shuffle(targets)
 
-        for block, target, pos in zip(blocks, targets, positions_coords):
+        for block, pos in zip(blocks, positions_coords):
             block_coords = np.array([central_block[0], central_block[1]+pos])
-            target_coords = np.array([central_block[0]+(self.block_range/2), central_block[1]+pos])
-            self._data.joint(block).qpos[:3] = (*block_coords, self._block_z)
-            self._data.joint(target).qpos[:3] = (*target_coords, self._block_z)      
-
+            self._data.joint(block).qpos[:3] = (*block_coords, self._block_z)  
         
         mujoco.mj_forward(self._model, self._data)
-
-        # Cache the initial block height
-        self._z_init = self._data.sensor("block1_pos").data[2]
-        self._z_success = self._z_init + 0.1
-
         obs = self._compute_observation()
 
         return obs, {}
@@ -173,21 +162,21 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
 
         return observation
 
-    def get_sensors(self):
+    def _get_sensors(self):
         block_sensors = [self._data.sensor(f"block{i}_pos") for i in range(1,self.no_blocks+1)]
         target_sensors = [self._data.sensor(f"target{i}_pos") for i in range(1,self.no_blocks+1)]
         return block_sensors, target_sensors
     
     def _compute_reward(self) -> float:
-        block_sensors, target_sensors = self.get_sensors()
+        block_sensors, target_sensors = self._get_sensors()
         block_target_pairs = zip(block_sensors, target_sensors)
         distances = list(map(lambda pair: np.exp(-20 * np.linalg.norm(pair[0].data-pair[1].data)), block_target_pairs))
         return sum(distances)
     
     def _is_success(self) -> bool:
-        block_sensors, target_sensors = self.get_sensors()
+        block_sensors, target_sensors = self._get_sensors()
         block_target_pairs = zip(block_sensors, target_sensors)
         distances = list(map(lambda pair: np.linalg.norm(pair[0].data-pair[1].data), block_target_pairs))
 
-        return all(list(map(lambda dist: np.exp(-20 * dist) > 0.8, distances)))
+        return all(list(map(lambda dist: dist > 0.01, distances)))
     
