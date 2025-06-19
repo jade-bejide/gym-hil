@@ -174,7 +174,7 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
             r_close = list(map(lambda pair: np.exp(-20 * np.linalg.norm(pair[0].data-pair[1].data)), block_target_pairs))
             return sum(r_close)
         else:
-            r_lift = list(map(lambda block: 0.3 * float(block.data[2] <= 0.1), block_sensors))
+            r_lift = list(map(lambda block: 0.3 * float(block.data[2] < 0.1), block_sensors))
             r_close = list(map(lambda pair: 0.7 * np.exp(-20 * np.linalg.norm(pair[0].data-pair[1].data)), block_target_pairs))
             return sum(r_lift) + sum(r_close)
     
