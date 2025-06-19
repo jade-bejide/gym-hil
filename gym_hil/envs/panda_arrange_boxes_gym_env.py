@@ -172,17 +172,16 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         block_target_pairs = zip(block_sensors, target_sensors)
 
         if self.reward_type == "dense":
-            distances = list(map(lambda pair: np.exp(-20 * np.linalg.norm(pair[0].data-pair[1].data)), block_target_pairs))
-            return sum(distances)
+            r_close = list(map(lambda pair: np.exp(-20 * np.linalg.norm(pair[0].data-pair[1].data)), block_target_pairs))
+            return sum(r_close)
         else:
-            lifts = list(map(lambda block: 0.3 * float(block.data[2] <= 0.05), block_sensors))
-            distances = list(map(lambda pair: 0.7 * np.exp(-20 * np.linalg.norm(pair[0].data-pair[1].data)), block_target_pairs))
-            return sum(lifts) + sum(distances)
+            r_lift = list(map(lambda block: 0.3 * float(block.data[2] <= 0.1), block_sensors))
+            r_close = list(map(lambda pair: 0.7 * np.exp(-20 * np.linalg.norm(pair[0].data-pair[1].data)), block_target_pairs))
+            return sum(r_lift) + sum(r_close)
     
     def _is_success(self) -> bool:
         block_sensors, target_sensors = self._get_sensors()
         block_target_pairs = zip(block_sensors, target_sensors)
         distances = list(map(lambda pair: np.linalg.norm(pair[0].data-pair[1].data), block_target_pairs))
-
-        return all(list(map(lambda dist: dist > 0.01, distances)))
+        return all(list(map(lambda dist: dist < 0.1, distances))) and all(list(map(lambda block: block.data[2] < 0.1)))
     
