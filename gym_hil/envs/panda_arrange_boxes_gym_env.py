@@ -98,13 +98,12 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         positions_coords = np.linspace(-self.block_range, self.block_range, self.no_blocks)
         np.random.shuffle(positions_coords)
 
-        central_block = np.random.uniform(*_SAMPLING_BOUNDS)
         # Sample a new block position
         blocks = [f"block{i}" for i in range(1,self.no_blocks+1)]
         np.random.shuffle(blocks)
 
         for block, pos in zip(blocks, positions_coords):
-            block_coords = np.array([central_block[0], central_block[1]+pos])
+            block_coords = np.array([0.5, pos])
             self._data.joint(block).qpos[:3] = (*block_coords, self._block_z)  
         
         mujoco.mj_forward(self._model, self._data)
