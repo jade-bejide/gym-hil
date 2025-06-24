@@ -52,7 +52,7 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         agent_dim = self.get_robot_state().shape[0]
         agent_box = spaces.Box(-np.inf, np.inf, (agent_dim,), dtype=np.float32)
         env_box = spaces.Box(-np.inf, np.inf, (3,), dtype=np.float32)
-        self.no_blocks = 5 # 5 boxes in arrange_boxes_scene.xml
+        self.no_blocks = self._get_no_boxes()
         self.block_range = 0.3
 
         if self.image_obs:
@@ -84,6 +84,14 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
                     "environment_state": env_box,
                 }
             )
+
+    def _get_no_boxes(self):
+        joint_names = [
+            mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_JOINT, i)
+            for i in range(self.model.njnt)
+        ]
+        block_names = list(filter(lambda joint: "block" in joint, joint_names))
+        return len(block_names)
 
     def reset(self, seed=None, **kwargs) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
         """Reset the environment."""
