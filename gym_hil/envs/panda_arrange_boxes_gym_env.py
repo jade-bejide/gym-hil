@@ -52,7 +52,7 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         agent_dim = self.get_robot_state().shape[0]
         agent_box = spaces.Box(-np.inf, np.inf, (agent_dim,), dtype=np.float32)
         env_box = spaces.Box(-np.inf, np.inf, (3,), dtype=np.float32)
-        self.no_blocks = 5
+        self.no_blocks = 5 # 5 boxes in arrange_boxes_scene.xml
         self.block_range = 0.3
 
         if self.image_obs:
