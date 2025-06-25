@@ -170,25 +170,34 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
 
         return observation
 
-    def _get_sensors(self):
-        block_sensors = [self._data.sensor(f"block{i}_pos") for i in range(1,self.no_blocks+1)]
-        target_sensors = [self._data.sensor(f"target{i}_pos") for i in range(1,self.no_blocks+1)]
-        return block_sensors, target_sensors
-    
+    def _get_sensors(self) -> Tuple[list, list]:
+        """Retrieve block and target positions."""
+        return (
+            [self._data.sensor(f"block{i}_pos") for i in range(1, self.no_blocks + 1)],
+            [self._data.sensor(f"target{i}_pos") for i in range(1, self.no_blocks + 1)],
+        )
+
     def _compute_reward(self) -> float:
+        """Compute the current reward based on block-target distances."""
         block_sensors, target_sensors = self._get_sensors()
-        block_target_pairs = zip(block_sensors, target_sensors)
+        distances = [
+            np.linalg.norm(block.data - target.data)
+            for block, target in zip(block_sensors, target_sensors)
+        ]
 
         if self.reward_type == "dense":
-            r_close = list(map(lambda pair: np.exp(-20 * np.linalg.norm(pair[0].data-pair[1].data)), block_target_pairs))
-            return sum(r_close)
+            return sum(np.exp(-20 * d) for d in distances)
         else:
-            r_close = list(map(lambda pair: np.linalg.norm(pair[0].data-pair[1].data), block_target_pairs))
-            return float(all(list(map(lambda dist: dist < 0.03, r_close))))
-    
+            return float(all(d < 0.03 for d in distances))
+
     def _is_success(self) -> bool:
+        """Check if the task is successfully completed."""
         block_sensors, target_sensors = self._get_sensors()
-        block_target_pairs = zip(block_sensors, target_sensors)
-        distances = list(map(lambda pair: np.linalg.norm(pair[0].data-pair[1].data), block_target_pairs))
-        return all(list(map(lambda dist: dist < 0.03, distances)))
+
+        distances = [
+            np.linalg.norm(block.data - target.data)
+            for block, target in zip(block_sensors, target_sensors)
+        ]
+
+        return all(dist < 0.03 for dist in distances)
     
