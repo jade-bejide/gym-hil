@@ -41,7 +41,7 @@ register(
 register(
     id="gym_hil/PandaArrangeBoxesBase-v0",  # This is the base environment
     entry_point="gym_hil.envs:PandaArrangeBoxesGymEnv",
-    max_episode_steps=100,   
+    max_episode_steps=100,
 )
 
 # Register the viewer wrapper
@@ -113,9 +113,5 @@ register(
     id="gym_hil/PandaArrangeBoxesKeyboard-v0",
     entry_point="gym_hil.wrappers.factory:make_env",
     max_episode_steps=100,
-    kwargs={
-        "env_id": "gym_hil/PandaArrangeBoxesBase-v0",
-        "use_viewer": True,
-        "gripper_penalty": -0.05
-    }
+    kwargs={"env_id": "gym_hil/PandaArrangeBoxesBase-v0", "use_viewer": True, "gripper_penalty": -0.05},
 )

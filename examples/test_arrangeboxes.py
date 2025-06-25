@@ -59,7 +59,9 @@ def main():
 
     # Now try with the wrapped version
     print("\nTrying wrapped environment...")
-    env_id = "gym_hil/PandaArrangeBoxesKeyboard-v0" if args.use_keyboard else "gym_hil/PandaArrangeBoxesGamepad-v0"
+    env_id = (
+        "gym_hil/PandaArrangeBoxesKeyboard-v0" if args.use_keyboard else "gym_hil/PandaArrangeBoxesGamepad-v0"
+    )
     env = gym.make(
         env_id,
         render_mode=args.render_mode,

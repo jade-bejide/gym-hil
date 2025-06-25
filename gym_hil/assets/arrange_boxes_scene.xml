@@ -59,7 +59,7 @@
       </body>
       <body name="target5" pos=".5 .3 0">
         <geom name="target5" type="box" size=".05 .05 .005" contype="0" conaffinity="0"  rgba=".6 .3 .6 .35"/>
-      </body>   
+      </body>
     </worldbody>
     <!-- Block Sensors -->
     <sensor>

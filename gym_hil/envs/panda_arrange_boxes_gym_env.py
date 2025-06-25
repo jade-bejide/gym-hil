@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import gymnasium as gym
-from typing import Any, Dict, Literal, Tuple
 from pathlib import Path
+from typing import Any, Dict, Literal, Tuple
+
 import mujoco
 import numpy as np
 from gymnasium import spaces
@@ -12,6 +12,7 @@ from gym_hil.mujoco_gym_env import FrankaGymEnv, GymRenderingSpec
 _PANDA_HOME = np.asarray((0, -0.785, 0, -2.35, 0, 1.57, np.pi / 4))
 _CARTESIAN_BOUNDS = np.asarray([[0.2, -0.5, 0], [0.6, 0.5, 0.5]])
 _SAMPLING_BOUNDS = np.asarray([[0.3, -0.15], [0.5, 0.15]])
+
 
 class PandaArrangeBoxesGymEnv(FrankaGymEnv):
     """Environment for a Panda robot picking up a cube."""
@@ -37,7 +38,7 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
             image_obs=image_obs,
             home_position=_PANDA_HOME,
             cartesian_bounds=_CARTESIAN_BOUNDS,
-            xml_path= Path(__file__).parent.parent / "assets" / "arrange_boxes_scene.xml"
+            xml_path=Path(__file__).parent.parent / "assets" / "arrange_boxes_scene.xml",
         )
 
         # Task-specific setup
@@ -87,8 +88,7 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
 
     def _get_no_boxes(self):
         joint_names = [
-            mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_JOINT, i)
-            for i in range(self.model.njnt)
+            mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_JOINT, i) for i in range(self.model.njnt)
         ]
         block_names = list(filter(lambda joint: "block" in joint, joint_names))
         return len(block_names)
@@ -107,14 +107,14 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         np.random.shuffle(positions_coords)
 
         # Sample a new block position
-        blocks = [f"block{i}" for i in range(1,self.no_blocks+1)]
+        blocks = [f"block{i}" for i in range(1, self.no_blocks + 1)]
         np.random.shuffle(blocks)
 
-        for block, pos in zip(blocks, positions_coords):
+        for block, pos in zip(blocks, positions_coords, strict=False):
             block_x_coord = self._data.joint(block).qpos[0]
             block_coords = np.array([block_x_coord, pos])
-            self._data.joint(block).qpos[:3] = (*block_coords, self._block_z)  
-        
+            self._data.joint(block).qpos[:3] = (*block_coords, self._block_z)
+
         mujoco.mj_forward(self._model, self._data)
         obs = self._compute_observation()
 
@@ -182,7 +182,7 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
         block_sensors, target_sensors = self._get_sensors()
         distances = [
             np.linalg.norm(block.data - target.data)
-            for block, target in zip(block_sensors, target_sensors)
+            for block, target in zip(block_sensors, target_sensors, strict=False)
         ]
 
         if self.reward_type == "dense":
@@ -196,8 +196,7 @@ class PandaArrangeBoxesGymEnv(FrankaGymEnv):
 
         distances = [
             np.linalg.norm(block.data - target.data)
-            for block, target in zip(block_sensors, target_sensors)
+            for block, target in zip(block_sensors, target_sensors, strict=False)
         ]
 
         return all(dist < 0.03 for dist in distances)
-    

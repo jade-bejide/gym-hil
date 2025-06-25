@@ -102,6 +102,7 @@ class EEActionWrapper(gym.ActionWrapper):
         action = np.concatenate([action_xyz, actions_orn, gripper_open_command])
         return action
 
+
 class InputsControlWrapper(gym.Wrapper):
     """
     Wrapper that allows controlling a gym environment with a gamepad.
